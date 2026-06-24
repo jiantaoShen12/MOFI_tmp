@@ -35,6 +35,9 @@ const TRAJ_4COLORS = ["#25346F", "#5E63D6", "#B65683", "#D89B2B"];
 const REAL_DAYS = [7, 12, 16, 19, 26];
 
 const TRAIL_LENGTH = 8;
+const KIDNEY_BACKGROUND_ALPHA = 0.04;
+const KIDNEY_TRAJECTORY_ALPHA = 1;
+const KIDNEY_TYPE_TRANSITION_WINDOW = 1.0;
 
 /* ── Helpers ────────────────────────────────────────────────────────── */
 function smoothstep(t) {
@@ -87,6 +90,76 @@ function rgbStr(c, alpha) {
     return `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)},${alpha})`;
   }
   return `rgb(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)})`;
+}
+
+function cellTypeRgb(type) {
+  return hexToRgb(CELL_TYPE_COLORS[type] || "#888888");
+}
+
+function trajectoryTypeColor(trajData, cellIdx, timeFloat) {
+  const { dynamic_types, final_types, times, shape } = trajData;
+  const samples = [];
+
+  if (dynamic_types && dynamic_types.length > 0) {
+    for (const sample of dynamic_types) {
+      samples.push({
+        time: sample.time,
+        type: sample.types ? sample.types[cellIdx] : undefined,
+      });
+    }
+  }
+
+  if (final_types && final_types[cellIdx]) {
+    const nBins = shape ? shape[1] : times.length;
+    const tMax = times[nBins - 1];
+    const last = samples[samples.length - 1];
+    if (!last || Math.abs(last.time - tMax) > 1e-6) {
+      samples.push({ time: tMax, type: final_types[cellIdx] });
+    } else {
+      last.type = final_types[cellIdx];
+    }
+  }
+
+  const validSamples = samples
+    .filter((sample) => sample.type)
+    .sort((a, b) => a.time - b.time);
+
+  if (validSamples.length === 0) return CELL_TYPE_COLORS.dev;
+  if (timeFloat <= validSamples[0].time) return CELL_TYPE_COLORS[validSamples[0].type] || "#888888";
+
+  const halfWindow = KIDNEY_TYPE_TRANSITION_WINDOW / 2;
+  let activeTransition = null;
+  for (let i = 0; i < validSamples.length - 1; i++) {
+    const from = validSamples[i];
+    const to = validSamples[i + 1];
+    if (from.type !== to.type) {
+      const changeTime = to.time;
+      const transitionStart = Math.max(validSamples[0].time, changeTime - halfWindow);
+      const transitionEnd = Math.min(validSamples[validSamples.length - 1].time, changeTime + halfWindow);
+      if (timeFloat >= transitionStart && timeFloat <= transitionEnd) {
+        const distance = Math.abs(timeFloat - changeTime);
+        if (!activeTransition || distance < activeTransition.distance) {
+          activeTransition = { from, to, transitionStart, transitionEnd, distance };
+        }
+      }
+    }
+  }
+
+  if (activeTransition) {
+    const { from, to, transitionStart, transitionEnd } = activeTransition;
+    const span = transitionEnd - transitionStart || 1;
+    const mix = smoothstep((timeFloat - transitionStart) / span);
+    return rgbStr(lerpColor(cellTypeRgb(from.type), cellTypeRgb(to.type), mix));
+  }
+
+  for (let i = validSamples.length - 1; i >= 0; i--) {
+    if (timeFloat >= validSamples[i].time) {
+      return CELL_TYPE_COLORS[validSamples[i].type] || "#888888";
+    }
+  }
+
+  const last = validSamples[validSamples.length - 1];
+  return CELL_TYPE_COLORS[last.type] || "#888888";
 }
 
 /* ── 从ODE轨迹数据中插值取某一时刻所有细胞的位置 ────────────────────── */
@@ -644,7 +717,7 @@ class KidneyViewer {
 
     // Trajectory selection
     this.fateMode = "mixed";
-    this.trajCount = 20;
+    this.trajCount = 40;
     this.selectedIndices = [];
 
     this.canvasRna = document.getElementById("kidney-rna-canvas");
@@ -748,10 +821,15 @@ class KidneyViewer {
     if (!this.trajRna || !this.trajRna.final_types || !this.selectionInfo) return;
 
     const count = Math.min(this.trajCount, 100);
+    if (this.fateMode === "mixed") {
+      this.selectedIndices = this.selectProportionalRandomTrajectories(count);
+      const countEl = document.getElementById("kidney-traj-count");
+      if (countEl) countEl.textContent = this.selectedIndices.length;
+      return;
+    }
 
     // 使用预选的轨迹索引
-    const fateKey = this.fateMode === "mixed" ? "Random" : this.fateMode;
-    const selection = this.selectionInfo[fateKey];
+    const selection = this.selectionInfo[this.fateMode];
 
     if (selection && selection.new_indices) {
       this.selectedIndices = selection.new_indices.slice(0, count);
@@ -769,6 +847,85 @@ class KidneyViewer {
     // Update count display
     const countEl = document.getElementById("kidney-traj-count");
     if (countEl) countEl.textContent = this.selectedIndices.length;
+  }
+
+  getFinalFateQuotas(count) {
+    const types = Object.keys(CELL_TYPE_COLORS);
+    const data = this.proportionsContinuous ? this.proportionsContinuous.data : null;
+    const proportions = {};
+
+    for (const type of types) {
+      const values = data && data[type];
+      proportions[type] = values && values.length ? values[values.length - 1] : 1 / types.length;
+    }
+
+    const total = Object.values(proportions).reduce((sum, value) => sum + value, 0) || 1;
+    const quotas = {};
+    const remainders = [];
+    let assigned = 0;
+
+    for (const type of types) {
+      const raw = (proportions[type] / total) * count;
+      const whole = Math.floor(raw);
+      quotas[type] = whole;
+      assigned += whole;
+      remainders.push({ type, remainder: raw - whole });
+    }
+
+    remainders.sort((a, b) => b.remainder - a.remainder);
+    for (let i = 0; assigned < count; i++, assigned++) {
+      quotas[remainders[i % remainders.length].type]++;
+    }
+
+    return quotas;
+  }
+
+  selectProportionalRandomTrajectories(count) {
+    const quotas = this.getFinalFateQuotas(count);
+    const finalTypes = this.trajRna.final_types;
+    const picked = [];
+    const used = new Set();
+    const randomSource = (this.selectionInfo.Random && this.selectionInfo.Random.new_indices)
+      ? this.selectionInfo.Random.new_indices
+      : finalTypes.map((_, idx) => idx);
+
+    const tryPick = (idx) => {
+      if (used.has(idx)) return false;
+      const fate = finalTypes[idx];
+      if (!quotas[fate] || quotas[fate] <= 0) return false;
+      picked.push(idx);
+      used.add(idx);
+      quotas[fate]--;
+      return true;
+    };
+
+    for (const idx of randomSource) {
+      if (picked.length >= count) break;
+      tryPick(idx);
+    }
+
+    for (const fate of Object.keys(CELL_TYPE_COLORS)) {
+      if (!quotas[fate] || quotas[fate] <= 0) continue;
+      const source = (this.selectionInfo[fate] && this.selectionInfo[fate].new_indices)
+        ? this.selectionInfo[fate].new_indices
+        : finalTypes.map((type, idx) => type === fate ? idx : -1).filter((idx) => idx >= 0);
+      for (const idx of source) {
+        if (picked.length >= count || quotas[fate] <= 0) break;
+        tryPick(idx);
+      }
+    }
+
+    if (picked.length < count) {
+      for (const idx of randomSource) {
+        if (picked.length >= count) break;
+        if (!used.has(idx)) {
+          picked.push(idx);
+          used.add(idx);
+        }
+      }
+    }
+
+    return picked;
   }
 
   _shuffle(arr) {
@@ -844,22 +1001,28 @@ class KidneyViewer {
     }
 
     // ── 1. Background: all real cells as small crosses ───────────────
-    const timeIdx = Math.round(timeFloat);
-    const bgKey = `t${Math.min(timeIdx, 4)}`;
-    const bg = this.background[bgKey];
-    if (bg) {
-      const positions = omics === "rna" ? bg.positions_rna : bg.positions_atac;
-      const types = bg.types;
+    if (this.background) {
+      const bgKeys = Object.keys(this.background).sort((a, b) => {
+        const ai = parseInt(a.replace(/\D/g, ""), 10);
+        const bi = parseInt(b.replace(/\D/g, ""), 10);
+        return ai - bi;
+      });
       ctx.lineWidth = 1;
-      for (let i = 0; i < positions.length; i++) {
-        const [px, py] = positions[i];
-        const [sx, sy] = toScreen(px, py);
-        const color = CELL_TYPE_COLORS[types[i]] || "#ccc";
-        ctx.strokeStyle = color;
-        ctx.globalAlpha = 0.2;
-        const sz = 3;
-        ctx.beginPath(); ctx.moveTo(sx - sz, sy - sz); ctx.lineTo(sx + sz, sy + sz); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(sx + sz, sy - sz); ctx.lineTo(sx - sz, sy + sz); ctx.stroke();
+      ctx.globalAlpha = KIDNEY_BACKGROUND_ALPHA;
+      for (const bgKey of bgKeys) {
+        const bg = this.background[bgKey];
+        if (!bg) continue;
+        const positions = omics === "rna" ? bg.positions_rna : bg.positions_atac;
+        const types = bg.types;
+        for (let i = 0; i < positions.length; i++) {
+          const [px, py] = positions[i];
+          const [sx, sy] = toScreen(px, py);
+          const color = CELL_TYPE_COLORS[types[i]] || "#ccc";
+          ctx.strokeStyle = color;
+          const sz = 3;
+          ctx.beginPath(); ctx.moveTo(sx - sz, sy - sz); ctx.lineTo(sx + sz, sy + sz); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(sx + sz, sy - sz); ctx.lineTo(sx - sz, sy + sz); ctx.stroke();
+        }
       }
       ctx.globalAlpha = 1;
     }
@@ -892,24 +1055,12 @@ class KidneyViewer {
 
     // ── 3. Selected trajectories: gray departure lines + colored dots ─
     const { positions, dim } = getPositionsAtTime(trajData, timeFloat);
-    const { shape: trajShape, times: trajTimes, data: trajRaw, dynamic_types } = trajData;
+    const { shape: trajShape, times: trajTimes, data: trajRaw } = trajData;
     const nBins = trajShape[1];
     const tMin = trajTimes[0];
     const tMax = trajTimes[nBins - 1];
     const tNormTraj = (timeFloat - tMin) / (tMax - tMin);
     const endBinTraj = Math.min(Math.floor(tNormTraj * (nBins - 1)), nBins - 1);
-
-    // Find the closest dynamic_types sample for current time
-    let curDynTypes = null;
-    if (dynamic_types && dynamic_types.length > 0) {
-      let bestIdx = 0;
-      let bestDist = Infinity;
-      for (let s = 0; s < dynamic_types.length; s++) {
-        const d = Math.abs(dynamic_types[s].time - timeFloat);
-        if (d < bestDist) { bestDist = d; bestIdx = s; }
-      }
-      curDynTypes = dynamic_types[bestIdx].types;
-    }
 
     for (const idx of this.selectedIndices) {
       if (idx >= trajShape[0]) continue;
@@ -928,18 +1079,17 @@ class KidneyViewer {
       ctx.stroke();
       ctx.globalAlpha = 1;
 
-      // Colored dot at current position (by DYNAMIC cell type at current time)
+      // Colored dot at current position, with smooth cell-type transition colors.
       const px = positions[idx * dim];
       const py = positions[idx * dim + 1];
       const [sx, sy] = toScreen(px, py);
-      const fate = (curDynTypes && curDynTypes[idx]) ? curDynTypes[idx] : (trajData.final_types ? trajData.final_types[idx] : "dev");
-      const tc = CELL_TYPE_COLORS[fate] || "#888";
+      const tc = trajectoryTypeColor(trajData, idx, timeFloat);
       const radius = 4;
 
       ctx.beginPath();
       ctx.arc(sx, sy, radius, 0, Math.PI * 2);
       ctx.fillStyle = tc;
-      ctx.globalAlpha = 0.92;
+      ctx.globalAlpha = KIDNEY_TRAJECTORY_ALPHA;
       ctx.fill();
 
       // Highlight
