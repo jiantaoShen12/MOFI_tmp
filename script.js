@@ -1606,11 +1606,167 @@ function switchTab(tab) {
     kidneyDemo.style.display = "";
     if (kidneyViewer && !kidneyViewer.loaded) kidneyViewer.loadData();
   }
+  if (window.mofiCueManager) {
+    window.mofiCueManager.running = false;
+    window.setTimeout(() => window.mofiCueManager.runIfDemosInView(), 450);
+    window.setTimeout(() => window.mofiCueManager.runIfDemosInView(), 2800);
+  }
 }
 
 function animationLoop() {
   requestAnimationFrame(animationLoop);
   if (kidneyViewer) kidneyViewer.tick();
+}
+
+class InteractionCueManager {
+  constructor() {
+    this.storagePrefix = "mofi-interactive-cue-v2-used:";
+    this.periodMs = 24000;
+    this.cueMs = 3400;
+    this.stepMs = 1050;
+    this.inView = false;
+    this.running = false;
+    this.lastCueAt = 0;
+    this.cues = [
+      { key: "simu-play", selector: "#simu-play-btn", label: "Play preview", events: ["click"] },
+      { key: "simu-slider", selector: "#simu-slider", label: "Drag timeline", events: ["input", "change", "pointerdown"] },
+      { key: "kidney-tab", selector: '.tab-btn[data-tab="kidney"]', label: "Switch dataset", events: ["click"] },
+      { key: "kidney-play", selector: "#kidney-play-btn", label: "Play preview", events: ["click"] },
+      { key: "kidney-slider", selector: "#kidney-slider", label: "Drag timeline", events: ["input", "change", "pointerdown"] },
+    ];
+  }
+
+  init() {
+    this.cues.forEach((cue) => {
+      const el = document.querySelector(cue.selector);
+      if (!el) return;
+      cue.events.forEach((eventName) => {
+        el.addEventListener(eventName, () => this.markUsed(cue.key));
+      });
+    });
+
+    const demos = document.getElementById("demos");
+    if (!demos) return;
+
+    const checkInView = () => {
+      const rect = demos.getBoundingClientRect();
+      this.inView = rect.top < window.innerHeight * 0.82 && rect.bottom > window.innerHeight * 0.18;
+      if (this.inView) this.runCurrentSequence();
+    };
+
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver((entries) => {
+        const entry = entries[0];
+        this.inView = entry.isIntersecting;
+        if (this.inView) this.runCurrentSequence();
+      }, { rootMargin: "-18% 0px -22% 0px", threshold: [0, 0.01] });
+      observer.observe(demos);
+    } else {
+    }
+
+    window.addEventListener("scroll", checkInView, { passive: true });
+    window.addEventListener("resize", checkInView);
+    window.setTimeout(checkInView, 700);
+
+    window.setInterval(() => {
+      if (!this.inView || Date.now() - this.lastCueAt < this.periodMs) return;
+      this.runCurrentSequence();
+    }, 5000);
+  }
+
+  runIfDemosInView() {
+    const demos = document.getElementById("demos");
+    if (!demos) return;
+    const rect = demos.getBoundingClientRect();
+    this.inView = rect.top < window.innerHeight * 0.82 && rect.bottom > window.innerHeight * 0.18;
+    if (this.inView) this.runCurrentSequence();
+  }
+
+  isUsed(key) {
+    try {
+      return window.localStorage.getItem(this.storagePrefix + key) === "1";
+    } catch (_) {
+      return false;
+    }
+  }
+
+  markUsed(key) {
+    try {
+      window.localStorage.setItem(this.storagePrefix + key, "1");
+    } catch (_) {
+      // localStorage can be unavailable in privacy-restricted contexts.
+    }
+    const cue = this.cues.find((item) => item.key === key);
+    const el = cue ? document.querySelector(cue.selector) : null;
+    if (el) el.classList.remove("use-cue");
+  }
+
+  activePanelKeys() {
+    const kidneyDemo = document.getElementById("demo-kidney");
+    const kidneyVisible = kidneyDemo && kidneyDemo.style.display !== "none";
+    return kidneyVisible
+      ? ["kidney-play", "kidney-slider"]
+      : ["simu-play", "simu-slider", "kidney-tab"];
+  }
+
+  isAvailable(cue) {
+    const el = document.querySelector(cue.selector);
+    if (!el || this.isUsed(cue.key)) return false;
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  }
+
+  runCurrentSequence() {
+    if (this.running) return;
+    const cueMap = new Map(this.cues.map((cue) => [cue.key, cue]));
+    const targets = this.activePanelKeys()
+      .map((key) => cueMap.get(key))
+      .filter((cue) => cue && this.isAvailable(cue));
+
+    if (targets.length === 0) return;
+
+    this.running = true;
+    this.lastCueAt = Date.now();
+
+    targets.forEach((cue, idx) => {
+      window.setTimeout(() => this.flash(cue), idx * this.stepMs);
+    });
+
+    window.setTimeout(() => {
+      this.running = false;
+    }, targets.length * this.stepMs + this.cueMs);
+  }
+
+  flash(cue) {
+    if (this.isUsed(cue.key)) return;
+    const el = document.querySelector(cue.selector);
+    if (!el) return;
+    el.classList.remove("use-cue");
+    void el.offsetWidth;
+    el.classList.add("use-cue");
+    this.showCallout(el, cue.label);
+    window.setTimeout(() => el.classList.remove("use-cue"), this.cueMs);
+  }
+
+  showCallout(el, label) {
+    if (!label) return;
+    const old = document.querySelector(`.cue-callout[data-cue-key="${label}"]`);
+    if (old) old.remove();
+
+    const rect = el.getBoundingClientRect();
+    const callout = document.createElement("div");
+    callout.className = "cue-callout";
+    callout.dataset.cueKey = label;
+    callout.textContent = label;
+    document.body.appendChild(callout);
+
+    const x = rect.left + rect.width / 2;
+    const y = Math.max(12, rect.top - 10);
+    callout.style.left = `${x}px`;
+    callout.style.top = `${y}px`;
+
+    window.setTimeout(() => callout.remove(), this.cueMs);
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -1621,6 +1777,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initKidney();
   tfUmapViewer = new TfUmapViewer();
   tfUmapViewer.loadData();
+  window.mofiCueManager = new InteractionCueManager();
+  window.mofiCueManager.init();
+  window.setTimeout(() => window.mofiCueManager.runIfDemosInView(), 1200);
   animationLoop();
   switchTab("simu");
 });

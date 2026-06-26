@@ -647,6 +647,104 @@ input[type="range"] {
   accent-color: var(--accent);
 }
 
+.use-cue {
+  position: relative;
+  z-index: 3;
+  animation: mofiCuePulse 1.8s ease-in-out 2;
+}
+
+input[type="range"].use-cue {
+  border-radius: 999px;
+  animation: mofiRangeCue 1.8s ease-in-out 2;
+}
+
+input[type="range"].use-cue::-webkit-slider-thumb {
+  animation: mofiThumbCue 1.8s ease-in-out 2;
+}
+
+input[type="range"].use-cue::-moz-range-thumb {
+  animation: mofiThumbCue 1.8s ease-in-out 2;
+}
+
+.cue-callout {
+  position: fixed;
+  z-index: 120;
+  pointer-events: none;
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(216,155,43,.36);
+  background: rgba(255,252,244,.96);
+  color: #7b5612;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1;
+  letter-spacing: .02em;
+  box-shadow: 0 10px 24px rgba(126,90,23,.14);
+  transform: translate(-50%, -8px);
+  animation: mofiCallout 3.4s ease-in-out forwards;
+}
+
+@keyframes mofiCuePulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(216,155,43,0);
+  }
+  45% {
+    transform: scale(1.075);
+    border-color: rgba(216,155,43,.78);
+    box-shadow:
+      0 0 0 7px rgba(216,155,43,.2),
+      0 0 0 14px rgba(216,155,43,.08),
+      0 12px 30px rgba(216,155,43,.24);
+  }
+}
+
+@keyframes mofiRangeCue {
+  0%, 100% {
+    transform: scaleX(1);
+    filter: none;
+    box-shadow: none;
+  }
+  45% {
+    transform: scaleX(1.035);
+    filter: saturate(1.2);
+    box-shadow:
+      0 0 0 7px rgba(216,155,43,.18),
+      0 0 0 14px rgba(216,155,43,.07),
+      0 0 20px rgba(216,155,43,.22);
+  }
+}
+
+@keyframes mofiThumbCue {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(216,155,43,0); }
+  45% { box-shadow: 0 0 0 8px rgba(216,155,43,.18); }
+}
+
+@keyframes mofiCallout {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(.96);
+  }
+  12%, 78% {
+    opacity: 1;
+    transform: translate(-50%, -8px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -14px) scale(.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .use-cue,
+  input[type="range"].use-cue {
+    animation: none;
+    outline: 3px solid rgba(216,155,43,.34);
+    outline-offset: 4px;
+  }
+  .cue-callout { animation: none; }
+}
+
 .time-chip {
   font-size: 1.15rem; font-weight: 800; color: var(--ink);
   background: rgba(255,255,255,.7);
