@@ -1620,19 +1620,20 @@ function animationLoop() {
 
 class InteractionCueManager {
   constructor() {
-    this.storagePrefix = "mofi-interactive-cue-v2-used:";
-    this.periodMs = 24000;
-    this.cueMs = 3400;
-    this.stepMs = 1050;
+    this.storagePrefix = "mofi-interactive-cue-v4-used:";
+    this.periodMs = 22000;
+    this.cueMs = 4200;
+    this.stepMs = 700;
     this.inView = false;
     this.running = false;
     this.lastCueAt = 0;
+    this.usedKeys = new Set();
     this.cues = [
-      { key: "simu-play", selector: "#simu-play-btn", label: "Play preview", events: ["click"] },
-      { key: "simu-slider", selector: "#simu-slider", label: "Drag timeline", events: ["input", "change", "pointerdown"] },
-      { key: "kidney-tab", selector: '.tab-btn[data-tab="kidney"]', label: "Switch dataset", events: ["click"] },
-      { key: "kidney-play", selector: "#kidney-play-btn", label: "Play preview", events: ["click"] },
-      { key: "kidney-slider", selector: "#kidney-slider", label: "Drag timeline", events: ["input", "change", "pointerdown"] },
+      { key: "simu-play", selector: "#simu-play-btn", events: ["click"] },
+      { key: "simu-slider", selector: "#simu-slider", events: ["input", "change", "pointerdown"] },
+      { key: "kidney-tab", selector: '.tab-btn[data-tab="kidney"]', events: ["click"] },
+      { key: "kidney-play", selector: "#kidney-play-btn", events: ["click"] },
+      { key: "kidney-slider", selector: "#kidney-slider", events: ["input", "change", "pointerdown"] },
     ];
   }
 
@@ -1683,6 +1684,7 @@ class InteractionCueManager {
   }
 
   isUsed(key) {
+    if (this.usedKeys.has(key)) return true;
     try {
       return window.localStorage.getItem(this.storagePrefix + key) === "1";
     } catch (_) {
@@ -1691,6 +1693,7 @@ class InteractionCueManager {
   }
 
   markUsed(key) {
+    this.usedKeys.add(key);
     try {
       window.localStorage.setItem(this.storagePrefix + key, "1");
     } catch (_) {
@@ -1699,6 +1702,7 @@ class InteractionCueManager {
     const cue = this.cues.find((item) => item.key === key);
     const el = cue ? document.querySelector(cue.selector) : null;
     if (el) el.classList.remove("use-cue");
+    this.updateHint();
   }
 
   activePanelKeys() {
@@ -1727,6 +1731,7 @@ class InteractionCueManager {
 
     this.running = true;
     this.lastCueAt = Date.now();
+    this.updateHint();
 
     targets.forEach((cue, idx) => {
       window.setTimeout(() => this.flash(cue), idx * this.stepMs);
@@ -1744,28 +1749,74 @@ class InteractionCueManager {
     el.classList.remove("use-cue");
     void el.offsetWidth;
     el.classList.add("use-cue");
-    this.showCallout(el, cue.label);
+    this.placeHint(this.hintContainerFor(cue.key), this.hintTextFor(cue.key));
     window.setTimeout(() => el.classList.remove("use-cue"), this.cueMs);
   }
 
-  showCallout(el, label) {
-    if (!label) return;
-    const old = document.querySelector(`.cue-callout[data-cue-key="${label}"]`);
-    if (old) old.remove();
+  hintContainerFor(key) {
+    if (key === "kidney-tab") return document.querySelector(".tab-switcher");
+    if (key.startsWith("kidney-")) return document.querySelector("#demo-kidney .demo-controls");
+    return document.querySelector("#demo-simu .demo-controls");
+  }
 
-    const rect = el.getBoundingClientRect();
-    const callout = document.createElement("div");
-    callout.className = "cue-callout";
-    callout.dataset.cueKey = label;
-    callout.textContent = label;
-    document.body.appendChild(callout);
+  hintTextFor(key) {
+    if (key === "kidney-tab") return "Switch to Kidney Organoid";
+    return "Try the play button or drag the timeline";
+  }
 
-    const x = rect.left + rect.width / 2;
-    const y = Math.max(12, rect.top - 10);
-    callout.style.left = `${x}px`;
-    callout.style.top = `${y}px`;
+  updateHint() {
+    this.removeHints();
+    const activeKeys = this.activePanelKeys().filter((key) => !this.isUsed(key));
+    if (activeKeys.length === 0) return;
 
-    window.setTimeout(() => callout.remove(), this.cueMs);
+    const kidneyDemo = document.getElementById("demo-kidney");
+    const kidneyVisible = kidneyDemo && kidneyDemo.style.display !== "none";
+    if (kidneyVisible) {
+      this.placeHint(
+        document.querySelector("#demo-kidney .demo-controls"),
+        "Try the play button or drag the timeline"
+      );
+      return;
+    }
+
+    const needsSimControls = activeKeys.includes("simu-play") || activeKeys.includes("simu-slider");
+    if (needsSimControls) {
+      this.placeHint(
+        document.querySelector("#demo-simu .demo-controls"),
+        "Try the play button or drag the timeline"
+      );
+    }
+
+    if (activeKeys.includes("kidney-tab")) {
+      this.placeHint(
+        document.querySelector(".tab-switcher"),
+        "Switch to Kidney Organoid"
+      );
+    }
+  }
+
+  placeHint(container, text) {
+    if (!container || container.querySelector(".cue-hint")) return;
+    const hint = document.createElement("span");
+    hint.className = "cue-hint";
+    hint.textContent = text;
+    container.appendChild(hint);
+
+    if (container.classList.contains("tab-switcher")) {
+      const kidneyTab = container.querySelector('.tab-btn[data-tab="kidney"]');
+      if (kidneyTab) {
+        const containerRect = container.getBoundingClientRect();
+        const tabRect = kidneyTab.getBoundingClientRect();
+        hint.style.left = `${tabRect.right - containerRect.left + 12}px`;
+        hint.style.top = `${tabRect.top - containerRect.top + tabRect.height / 2}px`;
+      }
+    }
+
+    window.setTimeout(() => hint.remove(), this.cueMs);
+  }
+
+  removeHints() {
+    document.querySelectorAll(".cue-hint").forEach((hint) => hint.remove());
   }
 }
 
