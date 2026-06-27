@@ -566,6 +566,7 @@ main {
 .tab-switcher {
   display: flex; gap: 10px; margin-bottom: 24px;
   justify-content: center;
+  position: relative;
 }
 
 .tab-btn {
@@ -600,7 +601,8 @@ main {
 .demo-panel-heading {
   display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 14px;
-  margin-bottom: 20px;
+  margin-bottom: 4px;
+  padding-bottom: 42px;
 }
 
 .card-label {
@@ -616,6 +618,7 @@ main {
 
 .demo-controls {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  position: relative;
 }
 
 .ctrl-btn {
@@ -650,38 +653,60 @@ input[type="range"] {
 .use-cue {
   position: relative;
   z-index: 3;
-  animation: mofiCuePulse 1.8s ease-in-out 2;
+  animation: mofiCuePulse 1.9s ease-in-out 2;
 }
 
 input[type="range"].use-cue {
   border-radius: 999px;
-  animation: mofiRangeCue 1.8s ease-in-out 2;
+  animation: mofiRangeCue 1.9s ease-in-out 2;
 }
 
 input[type="range"].use-cue::-webkit-slider-thumb {
-  animation: mofiThumbCue 1.8s ease-in-out 2;
+  animation: mofiThumbCue 1.9s ease-in-out 2;
 }
 
 input[type="range"].use-cue::-moz-range-thumb {
-  animation: mofiThumbCue 1.8s ease-in-out 2;
+  animation: mofiThumbCue 1.9s ease-in-out 2;
 }
 
-.cue-callout {
-  position: fixed;
-  z-index: 120;
-  pointer-events: none;
-  padding: 7px 11px;
+.cue-hint {
+  position: absolute;
+  z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(216,155,43,.36);
-  background: rgba(255,252,244,.96);
+  border: 1px solid rgba(216,155,43,.28);
+  background: rgba(255,252,244,.82);
   color: #7b5612;
   font-size: 12px;
   font-weight: 850;
-  line-height: 1;
   letter-spacing: .02em;
-  box-shadow: 0 10px 24px rgba(126,90,23,.14);
-  transform: translate(-50%, -8px);
-  animation: mofiCallout 3.4s ease-in-out forwards;
+  white-space: nowrap;
+  box-shadow: 0 8px 22px rgba(126,90,23,.09);
+  pointer-events: none;
+  animation: mofiHintFade 4.1s ease-in-out forwards;
+}
+
+.demo-controls .cue-hint {
+  top: calc(100% + 7px);
+  left: 0;
+}
+
+.tab-switcher .cue-hint {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.cue-hint::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d89b2b;
+  box-shadow: 0 0 0 5px rgba(216,155,43,.16);
 }
 
 @keyframes mofiCuePulse {
@@ -690,12 +715,12 @@ input[type="range"].use-cue::-moz-range-thumb {
     box-shadow: 0 0 0 0 rgba(216,155,43,0);
   }
   45% {
-    transform: scale(1.075);
-    border-color: rgba(216,155,43,.78);
+    transform: scale(1.08);
+    border-color: rgba(216,155,43,.92);
     box-shadow:
-      0 0 0 7px rgba(216,155,43,.2),
-      0 0 0 14px rgba(216,155,43,.08),
-      0 12px 30px rgba(216,155,43,.24);
+      0 0 0 8px rgba(216,155,43,.22),
+      0 0 0 17px rgba(216,155,43,.1),
+      0 14px 34px rgba(216,155,43,.28);
   }
 }
 
@@ -706,12 +731,12 @@ input[type="range"].use-cue::-moz-range-thumb {
     box-shadow: none;
   }
   45% {
-    transform: scaleX(1.035);
-    filter: saturate(1.2);
+    transform: scaleX(1.045);
+    filter: saturate(1.28);
     box-shadow:
-      0 0 0 7px rgba(216,155,43,.18),
-      0 0 0 14px rgba(216,155,43,.07),
-      0 0 20px rgba(216,155,43,.22);
+      0 0 0 8px rgba(216,155,43,.2),
+      0 0 0 16px rgba(216,155,43,.08),
+      0 0 22px rgba(216,155,43,.24);
   }
 }
 
@@ -720,18 +745,15 @@ input[type="range"].use-cue::-moz-range-thumb {
   45% { box-shadow: 0 0 0 8px rgba(216,155,43,.18); }
 }
 
-@keyframes mofiCallout {
+@keyframes mofiHintFade {
   0% {
     opacity: 0;
-    transform: translate(-50%, 0) scale(.96);
   }
-  12%, 78% {
+  14%, 82% {
     opacity: 1;
-    transform: translate(-50%, -8px) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -14px) scale(.98);
   }
 }
 
@@ -742,7 +764,7 @@ input[type="range"].use-cue::-moz-range-thumb {
     outline: 3px solid rgba(216,155,43,.34);
     outline-offset: 4px;
   }
-  .cue-callout { animation: none; }
+  .cue-hint { animation: none; }
 }
 
 .time-chip {
