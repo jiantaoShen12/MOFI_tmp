@@ -225,7 +225,7 @@
               <span>Lower influence</span>
             </div>
           </div>
-          <p class="tf-legend-note">Colors represent 10 clusters ranked by cross-omics regulatory strength. Darker colors = stronger influence.</p>
+          <p class="tf-legend-note">Colors represent 10 clusters ranked by cross-omics transformation strength. Darker colors = stronger influence.</p>
         </div>
       </article>
     </section>
@@ -264,7 +264,7 @@
       <div class="section-head narrow">
         <p class="kicker">Downstream Analysis</p>
         <h2>Inter-Omics Dynamical Mechanism Exploration.</h2>
-        <p>MOFI enables a suite of downstream analyses that go beyond trajectory inference — from predicting how perturbing one omics layer propagates to others, to discovering cross-omics regulatory programs and reconstructing developmental lineages.</p>
+        <p>MOFI enables a suite of downstream analyses that go beyond trajectory inference — from predicting how perturbing one omics layer propagates to others, to discovering cross-omics transformation programs and reconstructing developmental lineages.</p>
       </div>
       <div class="downstream-grid">
         <article class="downstream-card">
@@ -277,12 +277,12 @@
           </div>
         </article>
         <article class="downstream-card">
-          <div class="downstream-badge">Cross-Omics Regulatory Programs</div>
+          <div class="downstream-badge">Cross-Omics Transformation Programs</div>
           <div class="downstream-img-wrap">
-            <img src="assets/下游分析b.jpg" alt="Cross-omics regulatory programs" loading="lazy" />
+            <img src="assets/下游分析b.jpg" alt="Cross-omics transformation programs" loading="lazy" />
           </div>
           <div class="downstream-body">
-            <p>Clustering genes by their regulatory impact on the target omics, uncovering functional groups with similar cross-omics influence patterns.</p>
+            <p>Clustering genes by their transformation impact on the target omics, uncovering functional groups with similar cross-omics influence patterns.</p>
           </div>
         </article>
         <article class="downstream-card">
@@ -350,18 +350,18 @@
           </figcaption>
         </figure>
         <figure class="paper-figure-card">
-          <div class="paper-figure-intro"><p class="figure-kicker">Figure 4</p><h3>In silico predictive modeling and cross-omics regulatory analysis of HSPC differentiation</h3></div>
+          <div class="paper-figure-intro"><p class="figure-kicker">Figure 4</p><h3>In silico predictive modeling and cross-omics transformation analysis of HSPC differentiation</h3></div>
           <img src="assets/figure4_画板 1_画板 1.jpg" alt="Hematopoiesis" loading="lazy" />
           <figcaption>
             <details class="figure-caption">
               <summary>Figure 4 Caption</summary>
               <div class="caption-body">
-                <p><strong>In silico predictive modeling and cross-omics regulatory analysis of HSPC differentiation.</strong></p>
+                <p><strong>In silico predictive modeling and cross-omics transformation analysis of HSPC differentiation.</strong></p>
                 <p><span class="caption-label">(A)</span> Generation of unseen time points. MOFI generates continuous snapshots for Days 3, 5, 6, 8, and 9 (dashed boxes) by interpolating between experimental RNA-Protein snapshots at Days 2, 4, 7, and 10 (solid boxes), capturing the fluid transition of hematopoietic stem and progenitor cells (HSPCs).</p>
                 <p><span class="caption-label">(B)</span> Perturbation-induced shifts in HSC fate trajectories. Simulation of HSC differentiation under perturbations of MkP-promoting genes. Positive (+) perturbation accelerates differentiation toward the MkP lineage, while Negative (–) perturbation redirects HSCs toward alternative fates by inhibiting MkP commitment.</p>
                 <p><span class="caption-label">(C)</span> Proportion changes at Day 10. Heatmap illustrates cell-type composition changes under varying perturbation intensities of MkP-promoting genes.</p>
-                <p><span class="caption-label">(D)</span> Gene-to-Protein regulatory programs. Left: UMAP embedding of the gene-to-protein regulatory matrix. Genes are clustered into six classes (Classes 1–6) via KNN based on their cross-omics regulatory strength, highlighting high-influence markers from Class 1. Right: Functional enrichment network for Class 1 genes.</p>
-                <p><span class="caption-label">(E)</span> Protein-to-Gene regulatory programs. Clustering of proteins based on their regulatory impact on transcriptomic states.</p>
+                <p><span class="caption-label">(D)</span> Gene-to-Protein transformation programs. Left: UMAP embedding of the gene-to-protein transformation matrix. Genes are clustered into six classes (Classes 1–6) via KNN based on their cross-omics transformation strength, highlighting high-influence markers from Class 1. Right: Functional enrichment network for Class 1 genes.</p>
+                <p><span class="caption-label">(E)</span> Protein-to-Gene transformation programs. Clustering of proteins based on their transformation impact on transcriptomic states.</p>
                 <p><span class="caption-label">(F)</span> TFRC vs CD71 dynamics under TFRC perturbation. Predicted expression/abundance levels for TFRC (RNA) and CD71 (Protein) under a gradient of RNA-level perturbations (z).</p>
               </div>
             </details>
@@ -378,7 +378,7 @@
                 <p><span class="caption-label">(A)</span> Synchronized RNA-ATAC temporal trajectories. Multi-modal dynamic modeling of brain organoid differentiation from Day 4 to Day 61. Left: Inferred multi-omics velocity fields for RNA and ATAC modalities. Right: Continuous-time state trajectories simulated by MOFI, overlaid on top of discrete experimental snapshots (gray background).</p>
                 <p><span class="caption-label">(B)</span> Multi-omics stage dynamics. Comparison of temporal program scores (z-scores) between Real data (crosses) and MOFI generations (lines).</p>
                 <p><span class="caption-label">(C)</span> Temporal value for NKX2-1 in RNA and ATAC. MOFI-predicted trajectories (lines) closely follow the experimental values for both RNA expression (blue circles) and chromatin accessibility (red diamonds).</p>
-                <p><span class="caption-label">(D)</span> Differential expression analysis: Organoid vs. EB. Volcano plots showing simulated differential analysis in RNA (top) and ATAC (bottom) between the organoid and EB stages. Key genes are highlighted, with down-regulated (left) and up-regulated (right) markers corresponding to the functional pathways listed below.</p>
+                <p><span class="caption-label">(D)</span> Differential expression analysis: Organoid vs. EB. Volcano plots showing simulated differential analysis in RNA (top) and ATAC (bottom) between the organoid and EB stages. Key genes are highlighted, with down-expression (left) and up-expression (right) markers corresponding to the functional pathways listed below.</p>
                 <p><span class="caption-label">(E)</span> Latent state trajectories. Reconstructed continuous trajectories (lines) projected onto the experimental cell-type manifold for RNA (left) and ATAC (right).</p>
                 <p><span class="caption-label">(F)</span> Inferred multi-omics growth fields. Spatial distribution of predicted growth rates visualized on RNA (left) and ATAC (right) UMAPs.</p>
               </div>
